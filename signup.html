@@ -1,0 +1,150 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DocuVerify | Sign Up</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/images/logo.jpeg">
+  <link href="../assets/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../assets/css/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../assets/css/style.css" rel="stylesheet">
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row auth-wrapper">
+      <!-- Form side -->
+      <div class="col-lg-6 d-flex align-items-center justify-content-center py-5 order-2 order-lg-1">
+        <div class="w-100" style="max-width: 440px;">
+          <a href="../index.html" class="navbar-brand fw-bold fs-4 text-decoration-none text-dark d-block mb-4"><i class="bi bi-shield-check text-primary"></i> DocuVerify</a>
+          <h3 class="fw-bold">Create your account</h3>
+          <p class="text-muted">Join DocuVerify document fraud detection.</p>
+
+          <form id="signupForm">
+            <!-- Custom subject line for your admin email notification -->
+            <input type="hidden" name="_subject" value="New Client Registration on DocuVerify!">
+
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <label for="first" class="form-label">First name</label>
+                <input type="text" class="form-control" id="first" name="first_name" placeholder="Juan" required>
+              </div>
+              <div class="col-sm-6">
+                <label for="last" class="form-label">Last name</label>
+                <input type="text" class="form-control" id="last" name="last_name" placeholder="Dela Cruz" required>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="email" class="form-label">Email address</label>
+              <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" required>
+            </div>
+            <div class="mb-3">
+              <label for="role" class="form-label">User Role</label>
+              <select class="form-select" id="role" name="role" required>
+                <option value="" selected disabled>Choose...</option>
+                <option>Business Owner / Manager</option>
+                <option>System Developer</option>
+                <option>Auditor / Researcher</option>
+              </select>
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required>
+              </div>
+              <div class="col-sm-6">
+                <label for="confirm" class="form-label">Confirm password</label>
+                <input type="password" class="form-control" id="confirm" required>
+              </div>
+            </div>
+            <div class="form-check mb-4">
+              <input class="form-check-input" type="checkbox" id="terms" required>
+              <label class="form-check-label" for="terms">I agree to the <a href="#">Terms &amp; Conditions</a></label>
+            </div>
+            <div id="authError" class="alert alert-danger d-none py-2 mb-3"></div>
+            <button type="submit" class="btn btn-brand w-100 py-2" id="submitBtn">Sign Up</button>
+          </form>
+
+          <p class="text-center mt-4 mb-0">Already have an account? <a href="login.html">Login</a></p>
+        </div>
+      </div>
+
+      <!-- Image side -->
+      <div class="col-lg-6 auth-image signup d-flex align-items-end p-5 order-1 order-lg-2">
+        <div class="text-white">
+          <h2 class="fw-bold">Secure Your Transactions</h2>
+          <p class="mb-0">Protect business records from fraudulent receipt and invoice alterations.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="../assets/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Supabase Configuration
+    const SUPABASE_URL = 'https://eqmdiljeffdlvmaqcfru.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_cLnIGyKarOMfhyZz-reSmg_pWxWskE7';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    document.getElementById('signupForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const pass = document.getElementById('password').value;
+      const confirmPass = document.getElementById('confirm').value;
+      const errorBox = document.getElementById('authError');
+      const btn = document.getElementById('submitBtn');
+
+      if (pass !== confirmPass) {
+        errorBox.textContent = "Passwords do not match!";
+        errorBox.classList.remove('d-none');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Creating account...";
+      errorBox.classList.add('d-none');
+
+      // 1. Register user in Supabase database & send user confirmation email
+      const { data, error } = await _supabase.auth.signUp({
+        email: document.getElementById('email').value,
+        password: pass,
+        options: {
+          data: {
+            first_name: document.getElementById('first').value,
+            last_name: document.getElementById('last').value,
+            role: document.getElementById('role').value
+          }
+        }
+      });
+
+      if (error) {
+        // If the email is already registered in Supabase, show a friendly warning with a login link
+        if (error.message.toLowerCase().includes('already registered') || error.status === 422) {
+          errorBox.innerHTML = `This email is already registered! You can <a href="login.html" class="alert-link">Log in here</a>.`;
+        } else {
+          errorBox.textContent = error.message;
+        }
+        
+        errorBox.classList.remove('d-none');
+        btn.disabled = false;
+        btn.textContent = "Sign Up";
+        return;
+      }
+
+      // 2. Send notification email to YOU (the admin) via Formspree in the background
+      try {
+        await fetch('https://formspree.io/f/xgakenjd', {
+          method: 'POST',
+          body: new FormData(e.target),
+          headers: { 'Accept': 'application/json' }
+        });
+      } catch (err) {
+        // Ignores background network drops so user signup still completes smoothly
+      }
+
+      // 3. Success notification
+      alert("Account successfully created! Please check your email inbox for confirmation.");
+      window.location.href = 'login.html';
+    });
+  </script>
+</body>
+</html>
